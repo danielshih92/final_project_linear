@@ -65,26 +65,34 @@ def extract_sift_features(image_path):
     keypoints, descriptors = sift.detectAndCompute(image, None)
     return descriptors
 
-# 假設你有一個包含圖像路徑和標籤的數據集
-image_paths = ['curry1.jpg',
-               'curry2.jpg',
-               'curry3.jpg',
-               'curry4.jpg',
-               'curry5.jpg',
-               'curry6.jpg',
-               'james1.jpg',
-               'james2.jpg',
-               'james3.jpg',
-               'james4.jpg',
-               'james5.jpg',
-               'james6.jpg']
-labels = [0, 0, 0,0,0,0,1,1,1,1,1,1]  # 對應的標籤，假設0和1代表不同的球星
+# 定義每個人的圖像數量和標籤
+people = {
+    'Stephen_Curry': 6,
+    'Lebron_James': 5
+}
+label_map = {'Stephen_Curry': 0, 'Lebron_James': 1}
+
+# 初始化圖像路徑和標籤列表
+image_paths = []
+labels = []
+
+# 生成圖像路徑和標籤
+for person, num_images in people.items():
+    for i in range(1, num_images + 1):
+        image_path = f'nba_players/{person}/{person}{i}.jpg'
+        image_paths.append(image_path)
+        labels.append(label_map[person])
+
+print(image_paths)
+print(labels)
 
 # 提取所有圖像的特徵
 all_descriptors = []
 for image_path in image_paths:
     descriptors = extract_sift_features(image_path)
     all_descriptors.append(descriptors)
+
+print(all_descriptors)
 
 # 使用PCA進行降維
 pca = PCA(n_components=50)
@@ -100,10 +108,20 @@ X_train, X_test, y_train, y_test = train_test_split(combined_features, labels, t
 knn = KNeighborsClassifier(n_neighbors=3)
 knn.fit(X_train, y_train)
 
-# 預測
-y_pred = knn.predict(X_test)
+# # 預測
+# y_pred = knn.predict(X_test)
 
-# 計算準確率
-accuracy = accuracy_score(y_test, y_pred)
-print("Accuracy:", accuracy)
+# # 計算準確率
+# accuracy = accuracy_score(y_test, y_pred)
+# print("Accuracy:", accuracy)
 
+
+##################################################################
+# # 測試新圖像
+# new_descriptors = extract_sift_features('test.jpg')
+# reduced_new_descriptors = pca.transform(new_descriptors)
+# combined_new_features = np.sum(reduced_new_descriptors, axis=0)
+
+# # 預測
+# predicted_label = knn.predict([combined_new_features])
+# print("Predicted Label:", predicted_label)
