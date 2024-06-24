@@ -1,127 +1,90 @@
-# import cv2
-# import numpy as np
-# from sklearn.decomposition import PCA
-# from sklearn.neighbors import KNeighborsClassifier
-
-# # 定義一個函數來提取SIFT特徵
-# def extract_sift_features(image_path):
-#     # 加載圖像並轉換為灰度圖
-#     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    
-#     if image is None:
-#         raise FileNotFoundError(f"Image file not found: {image_path}")
-    
-#     # 初始化SIFT檢測器
-#     sift = cv2.SIFT_create()
-    
-#     # 檢測關鍵點和計算描述子
-#     keypoints, descriptors = sift.detectAndCompute(image, None) 
-    
-#     return descriptors
-
-# # 提取多張圖像的特徵
-# descriptors1 = extract_sift_features('curry1.jpg')
-# descriptors2 = extract_sift_features('LeBron_James2.jpg')
-
-# # 使用PCA進行降維
-# pca = PCA(n_components=50)
-# reduced_descriptors1 = pca.fit_transform(descriptors1)
-# reduced_descriptors2 = pca.fit_transform(descriptors2)
-
-# # 特徵組合
-# combined_features1 = np.sum(reduced_descriptors1, axis=0)
-# combined_features2 = np.sum(reduced_descriptors2, axis=0)
-
-# # 標籤數據（假設有兩個類別，0 和 1）
-# labels = np.array([0, 1])
-
-# # 特徵數據
-# features = np.array([combined_features1, combined_features2])
-
-# # 訓練KNN分類器
-# knn = KNeighborsClassifier(n_neighbors=1)
-# knn.fit(features, labels)
-
-# # 測試新圖像
-# new_descriptors = extract_sift_features('LeBron_James1.jpg')
-# reduced_new_descriptors = pca.transform(new_descriptors)
-# combined_new_features = np.sum(reduced_new_descriptors, axis=0)
-
-# # 預測
-# predicted_label = knn.predict([combined_new_features])
-# print("Predicted Label:", predicted_label)
-
+import os
 import cv2
 import numpy as np
-from sklearn.decomposition import PCA
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-# 定義一個函數來提取SIFT特徵
-def extract_sift_features(image_path):
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    sift = cv2.SIFT_create()
-    keypoints, descriptors = sift.detectAndCompute(image, None)
-    return descriptors
-
-# 定義每個人的圖像數量和標籤
-people = {
-    'Stephen_Curry': 6,
-    'Lebron_James': 5
+# 定義每個類別的圖像資料夾和標籤
+categories = {
+    'landscape': 0,
+    'animal': 1,
+    'human': 2
 }
-label_map = {'Stephen_Curry': 0, 'Lebron_James': 1}
 
 # 初始化圖像路徑和標籤列表
 image_paths = []
 labels = []
 
 # 生成圖像路徑和標籤
-for person, num_images in people.items():
-    for i in range(1, num_images + 1):
-        image_path = f'nba_players/{person}/{person}{i}.jpg'
+data_dir = 'images'
+for category in categories.keys():
+    dir_path = os.path.join(data_dir, category)
+    for file_name in os.listdir(dir_path):
+        image_path = os.path.join(dir_path, file_name)
         image_paths.append(image_path)
-        labels.append(label_map[person])
+        labels.append(categories[category])
 
-print(image_paths)
-print(labels)
+# 初始化 SIFT
+sift = cv2.SIFT_create()
 
-# 提取所有圖像的特徵
-all_descriptors = []
-for image_path in image_paths:
-    descriptors = extract_sift_features(image_path)
-    all_descriptors.append(descriptors)
+# 提取特徵
+def extract_sift_features(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    keypoints, descriptors = sift.detectAndCompute(gray, None)
+    return descriptors
 
-print(all_descriptors)
+# 從圖像路徑列表中提取特徵
+def extract_features(image_paths):
+    all_descriptors = []
+    for path in image_paths:
+        img = cv2.imread(path)
+        if img is not None:
+            descriptors = extract_sift_features(img)
+            if descriptors is not None:
+                all_descriptors.append(descriptors)
+    return all_descriptors
 
-# 使用PCA進行降維
-pca = PCA(n_components=50)
-reduced_descriptors = [pca.fit_transform(descriptor) for descriptor in all_descriptors]
+# 提取特徵
+all_descriptors = extract_features(image_paths)
 
-# 特徵組合
-combined_features = [np.sum(descriptor, axis=0) for descriptor in reduced_descriptors]
+# 將所有特徵堆疊成一個數組
+X = np.vstack(all_descriptors)
+y = np.array(labels)
 
-# 分割訓練集和測試集
-X_train, X_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.2, random_state=42)
+# 切分訓練集和測試集
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 訓練KNN分類器
-knn = KNeighborsClassifier(n_neighbors=3)
-knn.fit(X_train, y_train)
+# 訓練 SVM 模型
+clf = SVC(kernel='linear')
+clf.fit(X_train, y_train)
 
-# # 預測
-# y_pred = knn.predict(X_test)
+# 預測
+y_pred = clf.predict(X_test)
 
-# # 計算準確率
-# accuracy = accuracy_score(y_test, y_pred)
-# print("Accuracy:", accuracy)
+# 評估模型
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy * 100:.2f}%')
 
+# # 分類新圖片
+# def classify_image(image_path):
+#     img = cv2.imread(image_path)
+#     descriptors = extract_sift_features(img)
+#     if descriptors is not None:
+#         prediction = clf.predict(descriptors)
+#         return prediction
+#     return None
 
-##################################################################
-# # 測試新圖像
-# new_descriptors = extract_sift_features('test.jpg')
-# reduced_new_descriptors = pca.transform(new_descriptors)
-# combined_new_features = np.sum(reduced_new_descriptors, axis=0)
+# # 測試新圖片
+# test_image_path = 'path_to_new_image.jpg'
+# result = classify_image(test_image_path)
+# if result is not None:
+#     if result[0] == 0:
+#         print("這張圖片中沒有動物或人類")
+#     elif result[0] == 1:
+#         print("這張圖片中有動物")
+#     elif result[0] == 2:
+#         print("這張圖片中有人類")
+# else:
+#     print("無法識別特徵")
 
-# # 預測
-# predicted_label = knn.predict([combined_new_features])
-# print("Predicted Label:", predicted_label)
