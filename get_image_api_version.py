@@ -2,7 +2,7 @@ from pexels_api import API
 import requests
 import os
 
-PEXELS_API_KEY = 'rpZcByybCpelu8JBWAHTxUul9U0CAXu72m7oNtskoR8vlu30fqN0ZkTP'  
+PEXELS_API_KEY = 'api_key'  
 
 def fetch_image_urls_from_pexels(query, max_links_to_fetch):
     headers = {
